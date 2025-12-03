@@ -8,8 +8,6 @@
 #include <vector>
 #include <string>
 #include <algorithm>
-#include <thread>
-#include <chrono>
 
 int main() {
     std::cout << "Welcome to Memoarr!\n";
@@ -32,10 +30,11 @@ int main() {
 
     // Ask for player names
     std::vector<std::string> names;
+    std::cin.ignore(); // Clear newline
     for (int i = 0; i < numPlayers; ++i) {
         std::string name;
         std::cout << "Player " << (i+1) << " name: ";
-        std::cin >> name;
+        std::getline(std::cin, name);
         names.push_back(name);
     }
 
@@ -55,178 +54,229 @@ int main() {
     }
 
     // Display initial game
-    std::cout << game;
+    std::cout << "\n" << game << "\n";
 
-    // Game loop
+    // Game loop - 7 rounds
     while (!rules.gameOver(game)) {
         game.nextRound();
-        std::cout << "\n=== Round " << game.getRound() << " ===\n";
+        std::cout << "\n========== ROUND " << game.getRound() << " ==========\n";
 
-        // Pre-round Reveal Phase
-        std::cout << "Revealing cards for players... (Memorize them!)\n";
+        // Pre-round reveal phase
+        std::cout << "\nRevealing cards for each player (memorize them)...\n";
         for (const auto& p : game.getPlayers()) {
-             auto locs = game.getSightLocations(p.getSide());
-             for(auto loc : locs) {
-                 game.turnFaceUp(loc.first, loc.second);
-             }
+            auto locs = game.getSightLocations(p.getSide());
+            std::cout << p.getName() << " can see: ";
+            for (auto loc : locs) {
+                std::cout << char('A' + (int)loc.first) << ((int)loc.second + 1) << " ";
+            }
+            std::cout << "\n";
+            
+            for (auto loc : locs) {
+                game.turnFaceUp(loc.first, loc.second);
+            }
         }
         
-        std::cout << game; // Show the revealed cards
+        std::cout << "\n" << game << "\n";
         
-        std::cout << "Press Enter to hide cards and start...";
-        std::cin.ignore();
+        std::cout << "Press Enter to hide cards and begin round...";
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         std::cin.get();
 
-        // Hide them again
+        // Hide cards again
         for (const auto& p : game.getPlayers()) {
-             auto locs = game.getSightLocations(p.getSide());
-             for(auto loc : locs) {
-                 game.turnFaceDown(loc.first, loc.second);
-             }
+            auto locs = game.getSightLocations(p.getSide());
+            for (auto loc : locs) {
+                game.turnFaceDown(loc.first, loc.second);
+            }
         }
         
-        // Ensure standard clean board display
-        if(!expertDisplay) std::cout << std::string(50, '\n'); 
-        std::cout << game;
+        std::cout << "\n" << game << "\n";
 
+        // Round play with proper player rotation
+        int currentPlayerIndex = 0;
         bool skipNextPlayer = false;
 
         while (!rules.roundOver(game)) {
-            // Get next player, handling skips
-            const Player& currentPlayer = rules.getNextPlayer(game);
+            // Get mutable players list
+            auto& players = game.getPlayersMutable();
             
+            // Find next active player starting from currentPlayerIndex
+            bool foundActive = false;
+            int startIndex = currentPlayerIndex;
+            
+            for (int i = 0; i < (int)players.size(); ++i) {
+                int idx = (startIndex + i) % players.size();
+                if (players[idx].isActive()) {
+                    currentPlayerIndex = idx;
+                    foundActive = true;
+                    break;
+                }
+            }
+            
+            if (!foundActive) break; // No active players
+            
+            Player& currentPlayer = players[currentPlayerIndex];
+            
+            // Handle skip from Turtle
             if (skipNextPlayer) {
-                std::cout << currentPlayer.getName() << " is skipped due to Turtle!\n";
+                std::cout << "\n" << currentPlayer.getName() << " is skipped due to Turtle effect!\n";
                 skipNextPlayer = false;
-                continue; 
+                currentPlayerIndex = (currentPlayerIndex + 1) % players.size();
+                continue;
             }
 
-            std::cout << "\n" << currentPlayer.getName() << "'s turn.\n";
+            std::cout << "\n>>> " << currentPlayer.getName() << "'s turn <<<\n";
             
-            bool turnActive = true;
-            bool isSecondTurn = false; // For Crab
+            bool playAgain = true;
+            bool isSecondTurn = false;
 
-            while (turnActive) {
+            while (playAgain) {
+                playAgain = false; // Reset unless Crab effect
+                
                 // Get card selection
                 char letter;
                 int number;
-                bool validPick = false;
                 Letter l;
                 Number n;
+                bool validPick = false;
 
                 while (!validPick) {
-                    std::cout << "Choose card (e.g. A1): ";
+                    std::cout << "Choose a card to reveal (e.g. A1): ";
                     std::cin >> letter >> number;
                     
                     if (letter < 'A' || letter > 'E' || number < 1 || number > 5) {
-                        std::cout << "Invalid format. Try again.\n";
+                        std::cout << "Invalid format. Use A-E and 1-5.\n";
                         continue;
                     }
 
                     l = static_cast<Letter>(letter - 'A');
                     n = static_cast<Number>(number - 1);
 
+                    // Check center
                     if (l == Letter::C && n == Number::Three) {
-                        std::cout << "Center is empty.\n";
+                        std::cout << "Center position is empty. Choose another.\n";
                         continue;
                     }
 
+                    // Check if blocked by Walrus
                     if (game.isBlocked(l, n)) {
-                        std::cout << "That card is blocked by the Walrus! Choose another.\n";
+                        std::cout << "That card is blocked by Walrus! Choose another.\n";
                         continue;
                     }
                     
+                    // Check if already face up
                     try {
-                        // Check if already face up
-                        // The rules say "choose a card to turn face up". 
-                        // If it's already up, strictly speaking you can't turn it up.
-                        // But usually in memory games you pick a hidden one.
                         if (game.getBoard().isFaceUp(l, n)) {
-                             // If it's already up, just select it as current?
-                             // Standard memory rules usually require picking hidden.
-                             // But let's assume you can pick visible to chain matches.
-                             // However, logic below calls turnFaceUp.
+                            std::cout << "That card is already revealed. Choose a hidden card.\n";
+                            continue;
                         }
                         validPick = true;
-                    } catch (...) {
-                        std::cout << "Invalid position.\n";
+                    } catch (const std::exception& e) {
+                        std::cout << "Invalid position: " << e.what() << "\n";
                     }
                 }
 
-                // Reset block for next turn immediately after valid pick? 
-                // Or at end of turn? Usually blocks last 1 turn.
+                // Clear Walrus block after valid selection
                 game.resetBlocked();
 
-                // Turn card up
-                bool wasHidden = game.turnFaceUp(l, n);
+                // Reveal card
+                game.turnFaceUp(l, n);
                 Card* card = game.getCard(l, n);
                 game.setCurrentCard(card);
-                std::cout << game;
-
-                ExpertEffect effect = ExpertEffect::None;
                 
-                // Apply expert rule if applicable
-                if (expertRules && card && wasHidden) { // Only trigger on reveal
-                    effect = rules.applyExpertRule(game, *card, const_cast<Player&>(currentPlayer));
-                    std::cout << game; // Show updates after expert rule
-                }
+                std::cout << "\n" << game << "\n";
 
-                // Check if valid match
-                if (!rules.isValid(game)) {
-                    std::cout << "Mismatch! " << currentPlayer.getName() << " is eliminated from this round.\n";
-                    game.setPlayerActive(currentPlayer.getSide(), false);
-                    turnActive = false;
-                } else {
-                    std::cout << "Match valid!\n";
-                    if (effect == ExpertEffect::PlayAgain && !isSecondTurn) {
-                        std::cout << "Crab effect: Play again!\n";
-                        isSecondTurn = true;
-                        // turnActive stays true, loop continues
-                    } else {
-                        if (effect == ExpertEffect::SkipNext) {
-                            skipNextPlayer = true;
-                        }
-                        turnActive = false; // Turn ends successfully
+                // Apply expert rules if enabled
+                ExpertEffect effect = ExpertEffect::None;
+                if (expertRules && card) {
+                    effect = rules.applyExpertRule(game, *card, currentPlayer);
+                    if (effect != ExpertEffect::None) {
+                        std::cout << "\n" << game << "\n";
                     }
                 }
-            } // End turn loop
-        } // End round loop
 
-        // Round over, give rubis to winner
-        const auto& players = game.getPlayers();
-        for (size_t i = 0; i < players.size(); ++i) {
-            if (players[i].isActive()) {
+                // Check validity
+                if (!rules.isValid(game)) {
+                    std::cout << "❌ MISMATCH! " << currentPlayer.getName() 
+                              << " is eliminated from this round.\n";
+                    currentPlayer.setActive(false);
+                } else {
+                    std::cout << "✓ Valid match!\n";
+                    
+                    // Handle special effects
+                    if (effect == ExpertEffect::PlayAgain && !isSecondTurn) {
+                        std::cout << "→ Crab effect: Play again!\n";
+                        playAgain = true;
+                        isSecondTurn = true;
+                    } else if (effect == ExpertEffect::SkipNext) {
+                        skipNextPlayer = true;
+                    }
+                }
+            }
+            
+            // Move to next player
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.size();
+        }
+
+        // Round over - award rubis to winner
+        std::cout << "\n--- Round " << game.getRound() << " Complete ---\n";
+        
+        for (auto& p : game.getPlayersMutable()) {
+            if (p.isActive()) {
                 Rubis* rubis = rubisDeck.getNext();
                 if (rubis) {
-                    std::cout << players[i].getName() << " wins the round and gets a ruby!\n";
-                    game.addRubisToPlayer(players[i].getSide(), *rubis);
+                    std::cout << "🏆 " << p.getName() << " wins and receives " 
+                              << *rubis << "!\n";
+                    p.addRubis(*rubis);
                     delete rubis;
                 } else {
-                    std::cout << "No more rubies!\n";
+                    std::cout << "⚠ No more rubies in deck!\n";
                 }
+                break;
             }
         }
 
-        // Print players sorted by rubis
-        std::vector<Player> sortedPlayers = game.getPlayers();
-        std::sort(sortedPlayers.begin(), sortedPlayers.end(), [](const Player& a, const Player& b) {
-            return a.getNRubies() < b.getNRubies();
-        });
+        // Display current standings
+        auto sortedPlayers = game.getPlayers();
+        std::sort(sortedPlayers.begin(), sortedPlayers.end(), 
+                  [](const Player& a, const Player& b) {
+                      return a.getNRubies() < b.getNRubies();
+                  });
         
-        std::cout << "\n--- Standings ---\n";
+        std::cout << "\n--- Current Standings ---\n";
         for (auto& p : sortedPlayers) {
-            p.setDisplayMode(true);
-            std::cout << p << "\n";
+            std::cout << p.getName() << ": " << p.getNRubies() << " rubis\n";
         }
     }
 
-    // Game over, print winner
+    // Game over - announce winner
+    std::cout << "\n" << std::string(50, '=') << "\n";
+    std::cout << "GAME OVER - 7 ROUNDS COMPLETE!\n";
+    std::cout << std::string(50, '=') << "\n\n";
+    
     const auto& players = game.getPlayers();
-    auto winnerIt = std::max_element(players.begin(), players.end(), [](const Player& a, const Player& b) {
-        return a.getNRubies() < b.getNRubies();
-    });
+    auto winnerIt = std::max_element(players.begin(), players.end(),
+                                      [](const Player& a, const Player& b) {
+                                          return a.getNRubies() < b.getNRubies();
+                                      });
+    
     if (winnerIt != players.end()) {
-        std::cout << "\nGAME OVER! Winner: " << winnerIt->getName() << " with " << winnerIt->getNRubies() << " rubis!\n";
+        std::cout << "🎉 WINNER: " << winnerIt->getName() 
+                  << " with " << winnerIt->getNRubies() << " rubis! 🎉\n\n";
+        
+        // Final standings
+        auto sortedPlayers = players;
+        std::sort(sortedPlayers.begin(), sortedPlayers.end(),
+                  [](const Player& a, const Player& b) {
+                      return a.getNRubies() > b.getNRubies();
+                  });
+        
+        std::cout << "Final Standings:\n";
+        int rank = 1;
+        for (const auto& p : sortedPlayers) {
+            std::cout << rank++ << ". " << p.getName() 
+                      << ": " << p.getNRubies() << " rubis\n";
+        }
     }
 
     return 0;

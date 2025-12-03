@@ -1,7 +1,7 @@
 #include "Board.h"
 #include "CardDeck.h"
 #include <stdexcept>
-#include <algorithm> // Required for std::swap and std::fill
+#include <algorithm>
 
 Board::Board(CardDeck& deck) : grid(5, std::vector<Card*>(5, nullptr)), faceUp(5, std::vector<bool>(5, false)) {
     for (int i = 0; i < 5; ++i) {
@@ -47,7 +47,7 @@ int Board::numberToIndex(Number n) const {
 bool Board::isValidPosition(Letter l, Number n) const {
     int i = letterToIndex(l);
     int j = numberToIndex(n);
-    return !(i == 2 && j == 2); // center invalid
+    return !(i == 2 && j == 2);
 }
 
 bool Board::isFaceUp(const Letter& l, const Number& n) const {
@@ -89,7 +89,6 @@ void Board::setCard(const Letter& l, const Number& n, Card* card) {
     grid[i][j] = card;
 }
 
-// Missing implementation from your original paste
 void Board::swapCards(const Letter& l1, const Number& n1, const Letter& l2, const Number& n2) {
     if (!isValidPosition(l1, n1) || !isValidPosition(l2, n2)) 
         throw OutOfRange("Invalid position");
@@ -99,15 +98,12 @@ void Board::swapCards(const Letter& l1, const Number& n1, const Letter& l2, cons
     int r2 = letterToIndex(l2);
     int c2 = numberToIndex(n2);
 
-    // Swap the card pointers
     std::swap(grid[r1][c1], grid[r2][c2]);
     
-    // Swap the face-up status safely
     bool temp = faceUp[r1][c1];
     faceUp[r1][c1] = faceUp[r2][c2];
     faceUp[r2][c2] = temp;
 }
-
 
 void Board::allFacesDown() {
     for (auto& row : faceUp) {
@@ -116,18 +112,25 @@ void Board::allFacesDown() {
 }
 
 std::ostream& operator<<(std::ostream& os, const Board& board) {
-    // Print the board as 19x19 grid
+    // Print 19x19 grid with row letters on left
     for (int row = 0; row < 19; ++row) {
+        // Print row letter for middle line of each card row
+        if (row % 4 == 1) {
+            int cardRow = row / 4;
+            os << char('A' + cardRow) << ' ';
+        } else {
+            os << "  "; // Two spaces for alignment
+        }
+        
         for (int col = 0; col < 19; ++col) {
-            // Determine which card this position belongs to
-            int cardRow = row / 4; // 0-4 for rows A-E
-            int cardCol = col / 4; // 0-4 for cols 1-5
+            int cardRow = row / 4;
+            int cardCol = col / 4;
             int subRow = row % 4;
             int subCol = col % 4;
 
             if (cardRow >= 5 || cardCol >= 5 || (cardRow == 2 && cardCol == 2)) {
                 os << ' ';
-            } else if (subRow == 3 || subCol == 3) { // space between cards
+            } else if (subRow == 3 || subCol == 3) {
                 os << ' ';
             } else {
                 Card* card = board.grid[cardRow][cardCol];
@@ -141,6 +144,6 @@ std::ostream& operator<<(std::ostream& os, const Board& board) {
         os << '\n';
     }
     
-    os << "1 2 3 4 5\n";
+    os << "  1 2 3 4 5\n";
     return os;
 }

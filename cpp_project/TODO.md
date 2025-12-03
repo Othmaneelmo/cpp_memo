@@ -1,0 +1,5 @@
+- [x] Remove SmallCardDeck class from test file
+- [x] Rewrite Card test to use card from deck
+- [x] Combine Board tests into one TEST_CASE without SECTIONs
+- [x] Test invalid positions for relevant methods
+- [x] Run tests to verify (tests pass after rebuild)

@@ -45,7 +45,7 @@ void Game::setCard(const Letter& l, const Number& n, Card* card) {
 void Game::nextRound() {
     ++round;
     board.allFacesDown();
-    resetBlocked(); // Clear walrus blocks
+    resetBlocked();
     previousCard = nullptr;
     currentCard = nullptr;
     for (auto& p : players) {
@@ -108,22 +108,22 @@ void Game::swapCards(Letter l1, Number n1, Letter l2, Number n2) {
 std::vector<std::pair<Letter, Number>> Game::getSightLocations(Side side) const {
     std::vector<std::pair<Letter, Number>> locs;
     switch (side) {
-        case Side::top: // A2, A3, A4
+        case Side::top:
             locs.push_back({Letter::A, Number::Two});
             locs.push_back({Letter::A, Number::Three});
             locs.push_back({Letter::A, Number::Four});
             break;
-        case Side::bottom: // E2, E3, E4
+        case Side::bottom:
             locs.push_back({Letter::E, Number::Two});
             locs.push_back({Letter::E, Number::Three});
             locs.push_back({Letter::E, Number::Four});
             break;
-        case Side::left: // B1, C1, D1
+        case Side::left:
             locs.push_back({Letter::B, Number::One});
             locs.push_back({Letter::C, Number::One});
             locs.push_back({Letter::D, Number::One});
             break;
-        case Side::right: // B5, C5, D5
+        case Side::right:
             locs.push_back({Letter::B, Number::Five});
             locs.push_back({Letter::C, Number::Five});
             locs.push_back({Letter::D, Number::Five});
@@ -134,36 +134,52 @@ std::vector<std::pair<Letter, Number>> Game::getSightLocations(Side side) const 
 
 std::ostream& operator<<(std::ostream& os, const Game& game) {
     if (game.expertDisplay) {
-        // Expert display: only revealed cards with positions
-        std::vector<std::pair<std::string, std::string>> revealed;
+        // Expert display: cards printed horizontally, positions below
+        // Format per PDF:
+        // yyy yyy bbb bbb
+        // yWy yPy bPb bTb
+        // yyy yyy bbb bbb
+        // A1  D1  B4  D3
+        
+        std::vector<std::tuple<Letter, Number, Card*>> revealed;
         for (int i = 0; i < 5; ++i) {
             for (int j = 0; j < 5; ++j) {
                 if (i == 2 && j == 2) continue;
                 Letter l = static_cast<Letter>(i);
                 Number n = static_cast<Number>(j);
                 if (game.board.isFaceUp(l, n)) {
-                    std::string pos = std::string(1, 'A' + i) + std::to_string(j + 1);
-                    std::string cardStr;
-                    Card* card = game.board.getCard(l, n);
-                    for (int r = 0; r < card->getNRows(); ++r) {
-                        cardStr += (*card)(r) + " ";
-                    }
-                    cardStr.pop_back(); 
-                    revealed.emplace_back(cardStr, pos);
+                    revealed.push_back({l, n, game.board.getCard(l, n)});
                 }
             }
         }
         
-        // Simple linear print for expert mode
-        os << "Expert Display (Revealed Cards):\n";
-        for (const auto& item : revealed) {
-            os << item.second << ": " << item.first << "\n";
+        if (!revealed.empty()) {
+            // Print 3 rows of cards side by side
+            for (int row = 0; row < 3; ++row) {
+                for (const auto& item : revealed) {
+                    Card* card = std::get<2>(item);
+                    os << (*card)(row) << " ";
+                }
+                os << "\n";
+            }
+            
+            // Print positions
+            for (const auto& item : revealed) {
+                Letter l = std::get<0>(item);
+                Number n = std::get<1>(item);
+                os << char('A' + static_cast<int>(l)) 
+                   << (static_cast<int>(n) + 1) << "  ";
+            }
+            os << "\n";
+        } else {
+            os << "No cards revealed yet.\n";
         }
-        os << "\n";
     } else {
         os << game.getBoard();
     }
+    
     // Print players
+    os << "\n";
     for (const auto& p : game.getPlayers()) {
         os << p << "\n";
     }

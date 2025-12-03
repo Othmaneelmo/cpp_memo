@@ -2,30 +2,28 @@
 #include "Enums.h"
 #include <stdexcept>
 
-
 Card::Card(FaceAnimal animal, FaceBackground background)
     : animal(animal), background(background) {}
 
-// Converts a row (0,1,2) of the card to a string like "RGB" or " F "
 std::string Card::operator()(int row) const {
     if (row < 0 || row >= getNRows())
         throw std::out_of_range("Invalid row index");
 
     char fill;
 
-    // Background fill character
+    // Background fill character - MUST BE LOWERCASE per PDF
     switch (background) {
-        case FaceBackground::Red:    fill = 'R'; break;
-        case FaceBackground::Green:  fill = 'G'; break;
-        case FaceBackground::Purple: fill = 'P'; break;
-        case FaceBackground::Blue:   fill = 'B'; break;
-        case FaceBackground::Yellow: fill = 'Y'; break;
+        case FaceBackground::Red:    fill = 'r'; break;
+        case FaceBackground::Green:  fill = 'g'; break;
+        case FaceBackground::Purple: fill = 'm'; break; // mauve in French
+        case FaceBackground::Blue:   fill = 'b'; break;
+        case FaceBackground::Yellow: fill = 'y'; break;
         default: fill = '?'; break;
     }
 
     std::string result(3, fill);
 
-    // Center row shows the animal letter
+    // Center row shows the animal letter - UPPERCASE
     if (row == 1) {
         char center;
         switch (animal) {

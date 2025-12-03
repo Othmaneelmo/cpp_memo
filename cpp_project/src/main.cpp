@@ -8,6 +8,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <limits>
 
 int main() {
     std::cout << "Welcome to Memoarr!\n";

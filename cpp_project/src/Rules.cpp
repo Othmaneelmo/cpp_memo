@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <iostream>
+#include <limits>
 
 bool Rules::isValid(const Game& game) const {
     if (!game.getPreviousCard() || !game.getCurrentCard()) return true;
@@ -37,6 +38,17 @@ const Player& Rules::getNextPlayer(const Game& game) const {
         }
     }
     throw std::runtime_error("No active players");
+}
+
+// Helper function to safely read position input
+static bool safeReadPosition(char& lChar, int& nInt) {
+    if (!(std::cin >> lChar >> nInt)) {
+        std::cin.clear();
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        return false;
+    }
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    return true;
 }
 
 ExpertEffect Rules::applyExpertRule(Game& game, const Card& card, Player& currentPlayer) {
@@ -74,7 +86,17 @@ ExpertEffect Rules::applyExpertRule(Game& game, const Card& card, Player& curren
             
             std::cout << "Current card is at " << char('A' + (int)l1) << ((int)n1 + 1) << "\n";
             std::cout << "Enter adjacent card position (e.g. B2) to swap with: ";
-            std::cin >> lChar >> nInt;
+            
+            // FIXED: Safe input reading
+            if (!safeReadPosition(lChar, nInt)) {
+                std::cout << "Invalid input. Swap ignored.\n";
+                break;
+            }
+            
+            // Convert to uppercase
+            if (lChar >= 'a' && lChar <= 'e') {
+                lChar = lChar - 'a' + 'A';
+            }
             
             try {
                 Letter l2 = static_cast<Letter>(lChar - 'A');
@@ -125,7 +147,17 @@ ExpertEffect Rules::applyExpertRule(Game& game, const Card& card, Player& curren
             
             std::cout << "Penguin! Turn a visible card face down.\n";
             std::cout << "Enter position (e.g. A1): ";
-            std::cin >> lChar >> nInt;
+            
+            // FIXED: Safe input reading
+            if (!safeReadPosition(lChar, nInt)) {
+                std::cout << "Invalid input. Penguin effect ignored.\n";
+                break;
+            }
+            
+            // Convert to uppercase
+            if (lChar >= 'a' && lChar <= 'e') {
+                lChar = lChar - 'a' + 'A';
+            }
             
             try {
                 Letter l = static_cast<Letter>(lChar - 'A');
@@ -146,7 +178,17 @@ ExpertEffect Rules::applyExpertRule(Game& game, const Card& card, Player& curren
         case FaceAnimal::Walrus: {
             std::cout << "Walrus! Block a card for the next player.\n";
             std::cout << "Enter position to block (e.g. A1): ";
-            std::cin >> lChar >> nInt;
+            
+            // FIXED: Safe input reading
+            if (!safeReadPosition(lChar, nInt)) {
+                std::cout << "Invalid input. Block ignored.\n";
+                break;
+            }
+            
+            // Convert to uppercase
+            if (lChar >= 'a' && lChar <= 'e') {
+                lChar = lChar - 'a' + 'A';
+            }
             
             try {
                 Letter l = static_cast<Letter>(lChar - 'A');

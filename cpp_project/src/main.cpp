@@ -10,6 +10,19 @@
 #include <algorithm>
 #include <limits>
 
+// Helper function to safely read input and clear buffer
+bool safeReadPosition(char& letter, int& number) {
+    if (!(std::cin >> letter >> number)) {
+        // Clear error state and flush buffer
+        std::cin.clear();
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        return false;
+    }
+    // Clear any remaining characters in the line
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    return true;
+}
+
 int main() {
     std::cout << "Welcome to Memoarr!\n";
 
@@ -31,7 +44,7 @@ int main() {
 
     // Ask for player names
     std::vector<std::string> names;
-    std::cin.ignore(); // Clear newline
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Clear newline
     for (int i = 0; i < numPlayers; ++i) {
         std::string name;
         std::cout << "Player " << (i+1) << " name: ";
@@ -80,7 +93,6 @@ int main() {
         std::cout << "\n" << game << "\n";
         
         std::cout << "Press Enter to hide cards and begin round...";
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         std::cin.get();
 
         // Hide cards again
@@ -143,7 +155,17 @@ int main() {
 
                 while (!validPick) {
                     std::cout << "Choose a card to reveal (e.g. A1): ";
-                    std::cin >> letter >> number;
+                    
+                    // FIXED: Safe input reading with error handling
+                    if (!safeReadPosition(letter, number)) {
+                        std::cout << "Invalid input. Please try again.\n";
+                        continue;
+                    }
+                    
+                    // Convert to uppercase if lowercase
+                    if (letter >= 'a' && letter <= 'e') {
+                        letter = letter - 'a' + 'A';
+                    }
                     
                     if (letter < 'A' || letter > 'E' || number < 1 || number > 5) {
                         std::cout << "Invalid format. Use A-E and 1-5.\n";
